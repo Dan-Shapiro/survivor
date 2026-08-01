@@ -54,8 +54,11 @@ Rails.application.configure do
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
 
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "example.com") }
+  # Set host to be used by links generated in mailer templates. Protocol is
+  # explicit since the default is http, which would silently mismatch a
+  # force_ssl site (config.force_ssl above) and generate broken/mixed-content
+  # links in every notification email.
+  config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "example.com"), protocol: "https" }
 
   # Resend's SMTP relay (free tier: 3,000/month, 100/day hard cap — see Notifications
   # plan for why per-message emails must be batched rather than sent one-per-event).
