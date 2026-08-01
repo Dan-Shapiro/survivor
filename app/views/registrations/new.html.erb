@@ -1,0 +1,41 @@
+<h1>Create your account</h1>
+
+<%= form_with model: @user, url: signup_path, local: true do |f| %>
+  <% if @user.errors.any? %>
+    <div>
+      <ul>
+        <% @user.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <% if params[:invite_code].present? %>
+    <%= hidden_field_tag :invite_code, params[:invite_code] %>
+  <% end %>
+
+  <div>
+    <%= f.label :display_name, "Display name" %>
+    <%= f.text_field :display_name %>
+  </div>
+
+  <div>
+    <%= f.label :email %>
+    <%= f.email_field :email %>
+  </div>
+
+  <div>
+    <%= f.label :pin, "4-digit PIN" %>
+    <%= f.password_field :pin, inputmode: "numeric", maxlength: 4, pattern: "[0-9]{4}" %>
+  </div>
+
+  <div>
+    <%= f.label :pin_confirmation, "Confirm PIN" %>
+    <%= f.password_field :pin_confirmation, inputmode: "numeric", maxlength: 4, pattern: "[0-9]{4}" %>
+  </div>
+
+  <%= f.submit "Sign up" %>
+<% end %>
+
+<p><%= link_to "Already have an account? Log in", login_path %></p>

@@ -1,0 +1,11 @@
+Hi <%= @membership.user.display_name %>,
+
+Tribal council results are in for Round <%= @round.number %> of <%= @season.name %>.
+
+<% if @result.eliminated_membership %>
+<%= @result.eliminated_membership.user.display_name %> was voted out.
+<% else %>
+It's a tie — a revote has opened among the tied players.
+<% end %>
+
+<%= season_round_url(@season, @round) %>

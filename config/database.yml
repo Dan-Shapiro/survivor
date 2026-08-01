@@ -1,0 +1,90 @@
+# PostgreSQL. Versions 9.5 and up are supported.
+#
+# Install the pg driver:
+#   gem install pg
+# On macOS with Homebrew:
+#   gem install pg -- --with-pg-config=/opt/homebrew/bin/pg_config
+# On Windows:
+#   gem install pg
+#       Choose the win32 build.
+#       Install PostgreSQL and put its /bin directory on your path.
+#
+# Configure Using Gemfile
+# gem "pg"
+#
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  # For details on connection pooling, see Rails configuration guide
+  # https://guides.rubyonrails.org/configuring.html#database-pooling
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Every environment here (dev, test, prod) connects through Supabase's
+  # pooled connection string when DATABASE_URL is set. That pooler runs in
+  # pgbouncer "transaction" mode, which doesn't support prepared statements
+  # or advisory locks reliably — a prepared statement can collide with one
+  # from a different client session sharing the same underlying server
+  # connection ("prepared statement already exists"), most likely to show
+  # up in longer-running processes (the test runner, `rails server`) rather
+  # than a single one-off `rails runner` call. Disabled everywhere for
+  # consistency rather than waiting for it to bite in a specific env.
+  prepared_statements: false
+  advisory_locks: false
+
+
+development:
+  <<: *default
+  database: survivor_development
+  # If DATABASE_URL is set (see .env.example, loaded via dotenv-rails), it
+  # points at a free Supabase "survivor-dev" project instead of requiring a
+  # local Postgres install — left unset above so this doesn't break `rails
+  # db:*` commands before that's configured.
+  <% if ENV["DATABASE_URL"].present? %>
+  url: <%= ENV["DATABASE_URL"] %>
+  <% end %>
+
+  # The specified database role being used to connect to PostgreSQL.
+  # To create additional roles in PostgreSQL see `$ createuser --help`.
+  # When left blank, PostgreSQL will use the default role. This is
+  # the same name as the operating system user running Rails.
+  #username: survivor
+
+  # The password associated with the PostgreSQL role (username).
+  #password:
+
+  # Connect on a TCP socket. Omitted by default since the client uses a
+  # domain socket that doesn't need configuration. Windows does not have
+  # domain sockets, so uncomment these lines.
+  #host: localhost
+
+  # The TCP port the server listens on. Defaults to 5432.
+  # If your server runs on a different port number, change accordingly.
+  #port: 5432
+
+  # Schema search path. The server defaults to $user,public
+  #schema_search_path: myapp,sharedapp,public
+
+  # Minimum log levels, in increasing order:
+  #   debug5, debug4, debug3, debug2, debug1,
+  #   log, notice, warning, error, fatal, and panic
+  # Defaults to warning.
+  #min_messages: notice
+
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+# Do not set this db to the same as development or production.
+test:
+  <<: *default
+  database: survivor_test
+  # No local Postgres install (see README) — reuses the same Supabase
+  # "survivor-dev" project as development when DATABASE_URL is set. Safe:
+  # Rails wraps each test in a transaction and rolls it back, so this
+  # doesn't leave data behind in the shared dev project.
+  <% if ENV["DATABASE_URL"].present? %>
+  url: <%= ENV["DATABASE_URL"] %>
+  <% end %>
+
+# Production connects to Supabase's pooled Postgres connection string via
+# DATABASE_URL (set as a Render environment variable, never committed).
+production:
+  <<: *default
+  url: <%= ENV["DATABASE_URL"] %>

@@ -1,0 +1,34 @@
+name: Scheduler
+
+# Drives round auto-close and scheduled announcements by hitting the app's
+# internal scheduler endpoint on a fixed interval, since Render's free tier
+# has no built-in cron and no always-on process to run one itself.
+#
+# 20 minutes, not tighter: this only needs to catch deadlines that are
+# host-set in hours/days, not seconds. A second, independent free pinger
+# (cron-job.org) should be configured as backup, since GitHub disables
+# schedule triggers after 60 days of no commits to the default branch —
+# likely during a hiatus between seasons.
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run-scheduler:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger internal scheduler endpoint
+        run: |
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${APP_URL}/internal/scheduler/run" \
+            -H "Authorization: Bearer ${SCHEDULER_TOKEN}")
+          echo "HTTP status: $status"
+          cat /tmp/response.json
+          if [ "$status" -ge 300 ]; then
+            echo "Scheduler endpoint returned a non-2xx status"
+            exit 1
+          fi
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          SCHEDULER_TOKEN: ${{ secrets.SCHEDULER_TOKEN }}

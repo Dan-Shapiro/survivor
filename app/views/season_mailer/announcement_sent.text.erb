@@ -1,0 +1,7 @@
+Hi <%= @membership.user.display_name %>,
+
+<%= @season.name %> announcement (<%= @announcement.announcement_type.humanize %>):
+
+<%= @announcement.body %>
+
+<%= season_announcements_url(@season) %>

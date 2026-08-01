@@ -1,0 +1,9 @@
+Hi <%= @membership.user.display_name %>,
+
+You have new messages in <%= @season.name %>:
+
+<% @unread_threads.each do |thread, count| %>
+- <%= thread.kind == "public" ? "Public chat" : (thread.name || "Direct message") %> (<%= count %> new)
+<% end %>
+
+<%= season_message_threads_url(@season) %>

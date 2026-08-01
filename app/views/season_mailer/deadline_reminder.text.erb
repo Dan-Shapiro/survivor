@@ -1,0 +1,5 @@
+Hi,
+
+Reminder: the <%= @kind == :challenge ? "challenge" : "vote" %> for Round <%= @round.number %> of <%= @season.name %> closes at <%= @deadline %>.
+
+<%= season_round_url(@season, @round) %>

@@ -1,0 +1,26 @@
+<h1>Survivor</h1>
+
+<% if logged_in? %>
+  <p><%= link_to "Create a season", new_season_path %></p>
+
+  <% if current_user.hosted_seasons.any? %>
+    <h2>Seasons you host</h2>
+    <ul>
+      <% current_user.hosted_seasons.each do |season| %>
+        <li><%= link_to season.name, season_path(season) %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <% player_seasons = current_user.seasons.where.not(id: current_user.hosted_seasons.select(:id)) %>
+  <% if player_seasons.any? %>
+    <h2>Seasons you're playing</h2>
+    <ul>
+      <% player_seasons.each do |season| %>
+        <li><%= link_to season.name, season_path(season) %></li>
+      <% end %>
+    </ul>
+  <% end %>
+<% else %>
+  <p>Log in or sign up to get started.</p>
+<% end %>

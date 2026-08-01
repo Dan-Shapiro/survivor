@@ -1,0 +1,11 @@
+Hi <%= @membership.user.display_name %>,
+
+Round <%= @round.number %> of <%= @season.name %> is open: "<%= @round.challenge.title %>"
+
+<%= @round.challenge.description %>
+
+<% if @round.challenge_deadline_at %>
+Deadline: <%= @round.challenge_deadline_at %>
+<% end %>
+
+<%= season_round_url(@season, @round) %>

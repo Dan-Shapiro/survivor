@@ -1,0 +1,182 @@
+<% is_host = @season.host_id == current_user.id %>
+
+<h1>Round <%= @round.number %> — <%= @season.name %></h1>
+<p>Phase: <%= @round.phase.humanize %> · Status: <%= @round.status.humanize %><%= " (auto-closed at deadline)" if @round.auto_closed? && @round.status.in?(%w[challenge_closed voting_closed]) %></p>
+
+<% if @round.challenge %>
+  <h2><%= @round.challenge.title %></h2>
+  <p><%= @round.challenge.description %></p>
+  <p>Result mode: <%= @round.challenge.result_mode.humanize %></p>
+
+  <% if @round.challenge_deadline_at %>
+    <p>Deadline: <%= @round.challenge_deadline_at %></p>
+  <% end %>
+
+  <% if is_host && @round.status == "scheduled" %>
+    <h3>Open this challenge</h3>
+    <%= form_with url: open_challenge_season_round_path(@season, @round), method: :post, local: true do |f| %>
+      <%= f.label :challenge_deadline_at, "Deadline" %>
+      <%= f.datetime_field :challenge_deadline_at %>
+      <%= f.submit "Open challenge" %>
+    <% end %>
+  <% end %>
+
+  <% if is_host && @round.status == "challenge_open" %>
+    <%= button_to "Close challenge", close_challenge_season_round_path(@season, @round), method: :post %>
+  <% end %>
+
+  <% if !is_host && @round.status == "challenge_open" && @my_result %>
+    <h3>Your submission</h3>
+    <%= form_with model: @my_result, url: season_round_challenge_submission_path(@season, @round), method: :patch, local: true, html: { multipart: true } do |f| %>
+      <%= f.label :proof, "Proof (photo/video, optional)" %>
+      <%= f.file_field :proof %>
+      <%= f.label :note, "Note (optional)" %>
+      <%= f.text_area :note %>
+      <%= f.submit "Save submission" %>
+    <% end %>
+  <% end %>
+
+  <% results_finalized = @challenge_results&.any?(&:is_immune?) %>
+
+  <% winner_options = @round.phase == "pre_merge" ? @tribes.map { |t| [ t.name, t.id ] } : @challenge_results.map { |r| [ r.season_membership.user.display_name, r.season_membership_id ] } %>
+
+  <% if is_host && @round.status == "challenge_closed" && !results_finalized %>
+    <h3>Enter results</h3>
+    <%= form_with url: finalize_results_season_round_path(@season, @round), method: :post, local: true do %>
+      <% if @round.challenge.result_mode == "winner_only" %>
+        <div>
+          <%= label_tag "winner_id", @round.phase == "pre_merge" ? "Winning tribe" : "Winner" %>
+          <%= select_tag "winner_id", options_for_select(winner_options) %>
+        </div>
+      <% else %>
+        <p>Winner is the <%= @round.phase == "pre_merge" ? "tribe with the highest average score" : "player with the highest score" %>.</p>
+        <div class="table-scroll">
+          <table>
+            <% @challenge_results.each do |result| %>
+              <tr>
+                <td><%= result.season_membership.user.display_name %></td>
+                <td><%= result.season_membership.tribe&.name %></td>
+                <td><%= number_field_tag "scores[#{result.season_membership_id}]", result.score %></td>
+              </tr>
+            <% end %>
+          </table>
+        </div>
+
+        <div>
+          <%= label_tag "winner_id", "Tie-break (only used if there's a tie)" %>
+          <%= select_tag "winner_id", options_for_select(winner_options), include_blank: true %>
+        </div>
+      <% end %>
+
+      <%= submit_tag "Finalize results — grant immunity" %>
+    <% end %>
+  <% end %>
+
+  <% if @challenge_results&.any? %>
+    <h3>Results</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Tribe</th>
+            <th>Score</th>
+            <th>Immune</th>
+            <th>Proof</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @challenge_results.each do |result| %>
+            <tr>
+              <td><%= result.season_membership.user.display_name %></td>
+              <td><%= result.season_membership.tribe&.name %></td>
+              <td><%= result.score %></td>
+              <td><%= result.is_immune? ? "✅" : "" %></td>
+              <td><%= link_to "View", result.proof if result.proof.attached? %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+
+  <% if is_host && @round.status == "challenge_closed" && results_finalized %>
+    <h3>Open voting</h3>
+    <p><%= @round.phase == "pre_merge" ? "The losing tribe votes to eliminate one of their own." : "Everyone votes, including the immune player — but votes against them won't count." %></p>
+    <%= form_with url: open_voting_season_round_path(@season, @round), method: :post, local: true do |f| %>
+      <%= f.label :vote_deadline_at, "Deadline (optional)" %>
+      <%= f.datetime_field :vote_deadline_at %>
+      <%= f.submit "Open voting" %>
+    <% end %>
+  <% end %>
+
+  <% @voting_sessions.each do |session| %>
+    <h3>Vote<%= session.session_number > 1 ? " — revote #{session.session_number}" : "" %></h3>
+
+    <% if is_host && session == @voting_session && session.status == "open" %>
+      <%= button_to "Close voting", close_voting_season_round_path(@season, @round), method: :post %>
+    <% end %>
+
+    <% if !is_host && session == @voting_session && session.status == "open" && @my_membership && session.eligible_voter_ids.include?(@my_membership.id) %>
+      <h4>Cast your vote</h4>
+      <% already_voted = session.votes.any? { |v| v.voter_membership_id == @my_membership.id } %>
+      <%= form_with url: season_round_vote_path(@season, @round), method: :post, local: true do %>
+        <%= select_tag :target_membership_id, options_for_select((session.candidate_ids - [ @my_membership.id ]).map { |id| [ @membership_names[id], id ] }) %>
+        <%= submit_tag already_voted ? "Change vote" : "Vote" %>
+      <% end %>
+    <% end %>
+
+    <% if !is_host && session == @voting_session && session.tribal_council_result.nil? && @my_membership&.active_idol %>
+      <%= button_to "Play your idol", season_round_idol_play_path(@season, @round), method: :post %>
+    <% end %>
+
+    <% if is_host %>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Voter</th><th>Voted for</th></tr></thead>
+          <tbody>
+            <% session.votes.each do |vote| %>
+              <tr>
+                <td><%= vote.voter_membership.user.display_name %></td>
+                <td><%= vote.voted_for_membership.user.display_name %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+
+    <% if session.tribal_council_result %>
+      <h4>Results</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Candidate</th><th>Votes</th></tr></thead>
+          <tbody>
+            <% session.tribal_council_result.tally.each do |membership_id, count| %>
+              <tr>
+                <td><%= @membership_names[membership_id.to_i] %></td>
+                <td><%= count %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% session.idol_plays.includes(idol: { holder_membership: :user }).each do |idol_play| %>
+        <p>🗿 <strong><%= idol_play.idol.holder_membership.user.display_name %></strong> played a hidden immunity idol — votes against them didn't count.</p>
+      <% end %>
+
+      <% if session.tribal_council_result.eliminated_membership %>
+        <p><strong><%= session.tribal_council_result.eliminated_membership.user.display_name %></strong> was voted out.</p>
+      <% else %>
+        <p>Tied — revote among the tied players.</p>
+      <% end %>
+    <% end %>
+  <% end %>
+
+  <% if is_host && @round.status == "voting_closed" %>
+    <%= button_to "Reveal tribal council", reveal_tribal_council_season_round_path(@season, @round), method: :post %>
+  <% end %>
+<% else %>
+  <p>No challenge configured for this round.</p>
+<% end %>

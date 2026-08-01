@@ -1,0 +1,39 @@
+<h1>Messages — <%= @season.name %></h1>
+
+<% is_spectator = @membership.role == "spectator" %>
+
+<h2>
+  <%= link_to "Public chat", season_message_thread_path(@season, @public_thread) %>
+  <% unread = @public_thread.unread_count_for(@membership) %>
+  <%= "(#{unread})" if unread > 0 %>
+</h2>
+
+<% unless is_spectator %>
+  <h2>Direct messages & groups</h2>
+  <ul>
+    <% @threads.each do |thread| %>
+      <li>
+        <%= link_to (thread.name || thread.season_memberships.where.not(id: @membership.id).map { |m| m.user.display_name }.join(", ")), season_message_thread_path(@season, thread) %>
+        <% unread = thread.unread_count_for(@membership) %>
+        <%= "(#{unread})" if unread > 0 %>
+      </li>
+    <% end %>
+  </ul>
+
+  <h3>Start a DM</h3>
+  <%= form_with url: season_message_threads_path(@season), method: :post, local: true do %>
+    <%= hidden_field_tag :kind, "dm" %>
+    <%= select_tag :other_membership_id, options_from_collection_for_select(@other_members, :id, ->(m) { m.user.display_name }) %>
+    <%= submit_tag "Message" %>
+  <% end %>
+
+  <h3>Start a group</h3>
+  <%= form_with url: season_message_threads_path(@season), method: :post, local: true do %>
+    <%= hidden_field_tag :kind, "group" %>
+    <%= text_field_tag :name, nil, placeholder: "Group name" %>
+    <% @other_members.each do |m| %>
+      <label><%= check_box_tag "participant_ids[]", m.id %> <%= m.user.display_name %></label>
+    <% end %>
+    <%= submit_tag "Create group" %>
+  <% end %>
+<% end %>

@@ -1,0 +1,32 @@
+<h1>New round — <%= @season.name %></h1>
+
+<%= form_with model: [ @season, @round ], local: true do |f| %>
+  <% if @round.errors.any? %>
+    <div>
+      <ul>
+        <% @round.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= f.fields_for :challenge do |cf| %>
+    <div>
+      <%= cf.label :title %>
+      <%= cf.text_field :title %>
+    </div>
+
+    <div>
+      <%= cf.label :description %>
+      <%= cf.text_area :description %>
+    </div>
+
+    <div>
+      <%= cf.label :result_mode, "How will results be entered?" %>
+      <%= cf.select :result_mode, Challenge::AVAILABLE_RESULT_MODES.map { |m| [ m.humanize, m ] } %>
+    </div>
+  <% end %>
+
+  <%= f.submit "Create round" %>
+<% end %>

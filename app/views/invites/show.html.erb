@@ -1,0 +1,17 @@
+<h1>You're invited to <%= @season.name %></h1>
+
+<% if @season.status != "setup" %>
+  <p>This season has already started — ask the host if there's still a way in.</p>
+<% elsif !logged_in? %>
+  <p>Log in or sign up to join.</p>
+  <p>
+    <%= link_to "Log in", login_path %>
+    or
+    <%= link_to "Sign up", signup_path(invite_code: @season.invite_code) %>
+  </p>
+<% elsif @already_member %>
+  <p>You're already in this season.</p>
+  <%= link_to "Go to season", season_path(@season) %>
+<% else %>
+  <%= button_to "Join #{@season.name}", join_path(@season.invite_code), method: :post %>
+<% end %>

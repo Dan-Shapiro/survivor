@@ -1,0 +1,44 @@
+<h1>Announcements — <%= @season.name %></h1>
+
+<% if @is_host %>
+  <h2>Post an announcement</h2>
+  <%= form_with url: season_announcements_path(@season), method: :post, local: true do %>
+    <div>
+      <%= label_tag :announcement_type, "Type" %>
+      <%= select_tag :announcement_type, options_for_select(Announcement::TYPES.map { |t| [ t.humanize, t ] }) %>
+    </div>
+
+    <div>
+      <%= label_tag :round_id, "Round (required for round-lifecycle types)" %>
+      <%= select_tag :round_id, options_from_collection_for_select(@rounds, :id, ->(r) { "Round #{r.number}" }), include_blank: true %>
+    </div>
+
+    <div>
+      <%= label_tag :body, "Message" %>
+      <%= text_area_tag :body %>
+    </div>
+
+    <div>
+      <%= label_tag :scheduled_at, "Send at (leave blank to send now)" %>
+      <%= datetime_field_tag :scheduled_at %>
+    </div>
+
+    <%= submit_tag "Save announcement" %>
+  <% end %>
+
+  <% if @pending.any? %>
+    <h2>Scheduled (not yet sent)</h2>
+    <ul>
+      <% @pending.each do |a| %>
+        <li><%= a.announcement_type.humanize %> — <%= a.body %> — sends at <%= a.scheduled_at %></li>
+      <% end %>
+    </ul>
+  <% end %>
+<% end %>
+
+<h2>Sent</h2>
+<ul>
+  <% @sent.each do |a| %>
+    <li><strong><%= a.announcement_type.humanize %></strong> (<%= a.sent_at %>) — <%= a.body %></li>
+  <% end %>
+</ul>

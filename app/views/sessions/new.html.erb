@@ -1,0 +1,17 @@
+<h1>Log in</h1>
+
+<%= form_with url: login_path, method: :post, local: true do |f| %>
+  <div>
+    <%= label_tag :email %>
+    <%= email_field_tag :email %>
+  </div>
+
+  <div>
+    <%= label_tag :pin, "4-digit PIN" %>
+    <%= password_field_tag :pin, nil, inputmode: "numeric", maxlength: 4, pattern: "[0-9]{4}" %>
+  </div>
+
+  <%= f.submit "Log in" %>
+<% end %>
+
+<p><%= link_to "Need an account? Sign up", signup_path %></p>

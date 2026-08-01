@@ -1,0 +1,141 @@
+<% is_host = @season.host_id == current_user.id %>
+
+<h1><%= @season.name %></h1>
+<p>Status: <%= @season.status %></p>
+<p><%= link_to "Messages", season_message_threads_path(@season) %></p>
+<p><%= link_to "Announcements", season_announcements_path(@season) %></p>
+
+<% if is_host %>
+  <p>
+    Invite link: <code><%= join_url(@season.invite_code) %></code>
+  </p>
+
+  <% if @season.status == "setup" %>
+    <h2>Tribes</h2>
+    <ul>
+      <% @tribes.each do |tribe| %>
+        <li>
+          <%= tribe.name %>
+          <%= button_to "Remove", season_tribe_path(@season, tribe), method: :delete %>
+        </li>
+      <% end %>
+    </ul>
+
+    <%= form_with model: [ @season, Tribe.new ], local: true do |f| %>
+      <%= f.text_field :name, placeholder: "Tribe name" %>
+      <%= f.submit "Add tribe" %>
+    <% end %>
+
+    <h2>Players (<%= @season.active_players.count %> / <%= Season::MINIMUM_PLAYERS %> minimum)</h2>
+    <ul>
+      <% @memberships.each do |membership| %>
+        <li>
+          <%= membership.user.display_name %> — <%= membership.role %>, <%= membership.status %>
+          <% if membership.role == "player" %>
+            <%= form_with model: [ @season, membership ], local: true do |f| %>
+              <%= f.collection_select :tribe_id, @tribes, :id, :name, include_blank: "No tribe" %>
+              <%= f.submit "Assign" %>
+            <% end %>
+            <%= button_to "Reset PIN", reset_pin_season_season_membership_path(@season, membership), method: :post %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+
+    <%= button_to "Start season", start_season_path(@season), method: :post %>
+  <% end %>
+<% else %>
+  <p>Host: <%= @season.host.display_name %></p>
+<% end %>
+
+<% if @season.status != "setup" %>
+  <h2>Rounds</h2>
+  <ul>
+    <% @season.rounds.order(:number).each do |round| %>
+      <li>
+        <%= link_to "Round #{round.number} (#{round.status.humanize})", season_round_path(@season, round) %>
+      </li>
+    <% end %>
+  </ul>
+
+  <% if is_host && @season.status.in?(%w[active merged]) %>
+    <%= link_to "New round", new_season_round_path(@season) %>
+  <% end %>
+<% end %>
+
+<% if @season.status.in?(%w[active merged jury complete]) %>
+  <h2>Players still in (<%= @season.active_players.count %>)</h2>
+  <ul>
+    <% @season.active_players.includes(:user, :tribe).each do |membership| %>
+      <li>
+        <%= membership.user.display_name %><%= " — #{membership.tribe.name}" if membership.tribe %>
+        <% if is_host %>
+          <%= button_to "Reset PIN", reset_pin_season_season_membership_path(@season, membership), method: :post %>
+          <%= button_to "Remove from season", remove_season_season_membership_path(@season, membership), method: :post,
+                form: { data: { turbo_confirm: "Remove #{membership.user.display_name} from the season? This can't be undone." } } %>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% my_membership = @season.season_memberships.find_by(user: current_user) %>
+
+<% if is_host && @season.status == "active" %>
+  <%= button_to "Merge tribes", merge_season_path(@season), method: :post %>
+<% end %>
+
+<% if is_host && @season.status.in?(%w[active merged]) %>
+  <h2>Idols</h2>
+  <%= form_with url: season_idols_path(@season), method: :post, local: true do %>
+    <%= select_tag :holder_membership_id, options_from_collection_for_select(@season.active_players.includes(:user), :id, ->(m) { m.user.display_name }) %>
+    <%= submit_tag "Grant idol" %>
+  <% end %>
+<% end %>
+
+<% if my_membership&.active_idol %>
+  <p>🗿 You are holding a hidden immunity idol.</p>
+<% end %>
+
+<% if @season.status.in?(%w[merged jury complete]) && @jurors.any? %>
+  <h2>Jury</h2>
+  <ul>
+    <% @jurors.each do |juror| %>
+      <li><%= juror.user.display_name %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% if is_host && @season.status == "merged" %>
+  <%= button_to "Start jury vote", start_jury_phase_season_path(@season), method: :post %>
+<% end %>
+
+<% if @season.status == "jury" %>
+  <h2>Finale</h2>
+
+  <% if my_membership && my_membership.status == "jury" %>
+    <h3>Cast your jury vote</h3>
+    <%= form_with url: season_jury_vote_path(@season), method: :post, local: true do %>
+      <%= select_tag :finalist_membership_id, options_from_collection_for_select(@season.active_players.includes(:user), :id, ->(m) { m.user.display_name }) %>
+      <%= submit_tag "Vote" %>
+    <% end %>
+  <% end %>
+
+  <% if is_host %>
+    <h3>Reveal finale</h3>
+    <%= form_with url: reveal_finale_season_path(@season), method: :post, local: true do %>
+      <%= label_tag :winner_id, "Tie-break (only used if there's a tie)" %>
+      <%= select_tag :winner_id, options_from_collection_for_select(@season.active_players.includes(:user), :id, ->(m) { m.user.display_name }), include_blank: true %>
+      <%= submit_tag "Reveal winner" %>
+    <% end %>
+  <% end %>
+<% end %>
+
+<% if @season.status == "complete" %>
+  <h2>Final Placements</h2>
+  <ol>
+    <% @season.season_memberships.where.not(placement: nil).order(:placement).includes(:user).each do |m| %>
+      <li><%= m.user.display_name %></li>
+    <% end %>
+  </ol>
+<% end %>

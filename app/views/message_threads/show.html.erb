@@ -1,0 +1,21 @@
+<% title = @thread.kind == "public" ? "Public chat" : (@thread.name || @thread.season_memberships.where.not(id: @membership.id).map { |m| m.user.display_name }.join(", ")) %>
+<h1><%= title %> — <%= @season.name %></h1>
+
+<%= link_to "Back to messages", season_message_threads_path(@season) %>
+
+<%= turbo_frame_tag "thread_messages", src: season_message_thread_path(@season, @thread), data: { controller: "poll", poll_interval_value: 10000 } do %>
+  <ul>
+    <% @messages.each do |message| %>
+      <li><strong><%= message.sender_membership.user.display_name %>:</strong> <%= message.body %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% if @thread.postable_by?(@membership) %>
+  <%= form_with url: season_message_thread_messages_path(@season, @thread), method: :post, local: true do %>
+    <%= text_area_tag :body %>
+    <%= submit_tag "Send" %>
+  <% end %>
+<% else %>
+  <p>You can view this chat but can't post.</p>
+<% end %>
